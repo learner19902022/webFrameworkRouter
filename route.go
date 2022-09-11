@@ -68,11 +68,12 @@ func (r *router) addRoute(method string, path string, handler HandleFunc) {
 	if root.handler != nil {
 		panic(fmt.Sprintf("web: 路由冲突[%s]", path))
 	}
+	//如果错误注册了路由，应该使用什么接口修改？无法重新写入吧？
 	root.handler = handler
 }
 
 // findRoute 查找对应的节点
-// 注意，返回的 node 内部 HandleFunc 不为 nil 才算是注册了路由
+// 注意，返回的 node 内部 HandleFunc 不为 nil 才算是注册了路由 //难道不是"才算是找到了路由"？
 func (r *router) findRoute(method string, path string) (*matchInfo, bool) {
 	root, ok := r.trees[method]
 	if !ok {
@@ -80,14 +81,14 @@ func (r *router) findRoute(method string, path string) (*matchInfo, bool) {
 	}
 
 	if path == "/" {
-		return &matchInfo{n: root}, root.handler != nil
+		return &matchInfo{n: root}, true //root.handler != nil
 	}
 
 	segs := strings.Split(strings.Trim(path, "/"), "/")
 	mi := &matchInfo{}
 	for _, s := range segs {
-		var matchParam bool
-		root, matchParam, ok = root.childOf(s)
+		var matchParam, matchRegex bool
+		root, matchParam, matchRegex, ok = root.childOf(s)
 		if !ok {
 			return nil, false
 		}
@@ -95,9 +96,16 @@ func (r *router) findRoute(method string, path string) (*matchInfo, bool) {
 		if matchParam {
 			mi.addValue(root.path[1:], s)
 		}
+		if matchRegex {
+			mi.addValue(root.path[1:strings.Index(root.path, "(")], s)
+		}
+		if !(matchParam || matchRegex) && root.typ == nodeTypeAny && root.children == nil && root.regChild == nil && root.paramChild == nil && root.starChild == nil {
+			mi.n = root
+			return mi, true
+		}
 	}
 	mi.n = root
-	return mi, root.handler != nil
+	return mi, true //root.handler != nil
 }
 
 type nodeType int
@@ -139,27 +147,6 @@ type node struct {
 	// 正则表达式
 	regChild *node
 	regExpr  *regexp.Regexp
-}
-
-// child 返回子节点
-// 第一个返回值 *node 是命中的节点
-// 第二个返回值 bool 代表是否是命中参数路由
-// 第三个返回值 bool 代表是否命中
-func (n *node) childOf(path string) (*node, bool, bool) {
-	if n.children == nil {
-		if n.paramChild != nil {
-			return n.paramChild, true, true
-		}
-		return n.starChild, false, n.starChild != nil
-	}
-	res, ok := n.children[path]
-	if !ok {
-		if n.paramChild != nil {
-			return n.paramChild, true, true
-		}
-		return n.starChild, false, n.starChild != nil
-	}
-	return res, false, ok
 }
 
 // childOrCreate 查找子节点，
@@ -244,6 +231,69 @@ func (n *node) childOrCreate(path string) *node {
 		n.children[path] = child
 	}
 	return child
+}
+
+// child 返回子节点
+// 第一个返回值 *node 是命中的节点
+// 第二个返回值 bool 代表是否命中参数路由
+// 第三个返回值 bool 代表是否命中正则路由
+// 第四个返回值 bool 代表是否命中
+func (n *node) childOf(path string) (*node, bool, bool, bool) {
+	if path == "" { //需要对空字段支持正则路由命中么？
+		return nil, false, false, false
+	}
+	if n.children == nil || func() bool {
+		_, ok := n.children[path]
+		return !ok
+	}() {
+		if n.regChild != nil {
+			if n.regChild.regExpr.FindString(path) != "" { //len(n.regExpr.FindString(path)) == len(path) { //这边有点问题：如果正则规则里面有倾向于取更少的字符，那么会导致即使全匹配，也会有限选择更短的string；可是如果不是检查长度的话，又无法排除path中的一部分匹配到了正则规则
+				return n.regChild, false, true, true
+			}
+			if n.paramChild != nil {
+				return n.paramChild, true, false, true
+			}
+			return n.starChild, false, false, n.starChild != nil
+		}
+		if n.paramChild != nil {
+			return n.paramChild, true, false, true
+		}
+		return n.starChild, false, false, n.starChild != nil
+	}
+	res, ok := n.children[path]
+	/*if n.children == nil {
+		if n.regChild != nil {
+			if n.regChild.regExpr.FindString(path) != "" { //len(n.regExpr.FindString(path)) == len(path) { //这边有点问题：如果正则规则里面有倾向于取更少的字符，那么会导致即使全匹配，也会有限选择更短的string；可是如果不是检查长度的话，又无法排除path中的一部分匹配到了正则规则
+				return n.regChild, false, true, true
+			}
+			if n.paramChild != nil {
+				return n.paramChild, true, false, true
+			}
+			return n.starChild, false, false, n.starChild != nil
+		}
+		if n.paramChild != nil {
+			return n.paramChild, true, false, true
+		}
+		return n.starChild, false, false, n.starChild != nil
+	}
+	res, ok := n.children[path]
+	if !ok {
+		if n.regChild != nil {
+			if n.regChild.regExpr.FindString(path) != "" { //len(n.regExpr.FindString(path)) == len(path) { //这边有点问题：如果正则规则里面有倾向于取更少的字符，那么会导致即使全匹配，也会有限选择更短的string；可是如果不是检查长度的话，又无法排除path中的一部分匹配到了正则规则
+				return n.regChild, false, true, true
+			}
+			if n.paramChild != nil {
+				return n.paramChild, true, false, true
+			}
+			return n.starChild, false, false, n.starChild != nil
+		}
+		if n.paramChild != nil {
+			return n.paramChild, true, false, true
+		}
+		return n.starChild, false, false, n.starChild != nil
+	}
+	*/
+	return res, false, false, ok
 }
 
 type matchInfo struct {

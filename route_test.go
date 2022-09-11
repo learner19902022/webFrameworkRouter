@@ -415,6 +415,11 @@ func Test_router_findRoute(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/order/*",
 		},
+		//try adding one layer here to see if it works? it should not work by design
+		//		{
+		//			method: http.MethodPost,
+		//			path:   "/order/*/address",
+		//		},
 		// 参数路由
 		{
 			method: http.MethodGet,
@@ -482,7 +487,7 @@ func Test_router_findRoute(t *testing.T) {
 				},
 			},
 		},
-		{
+		{ //为了调试路由么？没有handler也显示路由found？
 			name:   "no handler",
 			method: http.MethodPost,
 			path:   "/order",
@@ -508,6 +513,7 @@ func Test_router_findRoute(t *testing.T) {
 		// 通配符匹配
 		{
 			// 命中/order/*
+			//如果是注册了/order/*/random，则测试会显示无法通过，需要去除handler才能通过测试，可是为什么会显示命中路由呢？
 			name:   "star match",
 			method: http.MethodPost,
 			path:   "/order/delete",
@@ -535,9 +541,24 @@ func Test_router_findRoute(t *testing.T) {
 		},
 		{
 			// 比 /order/* 多了一段
+			//如果既有/a/b/*, 又有/a/b/*/c，那么遇到/a/b/ggg/c该怎么匹配，是优先静态路由？那如果是/a/b/ggg/c/d呢？是否应该匹配/a/b/*？这样是否意味着需要回溯？
 			name:   "overflow",
 			method: http.MethodPost,
 			path:   "/order/delete/123",
+			found:  true,
+			mi: &matchInfo{
+				n: &node{
+					path:    "*",
+					handler: mockHandler,
+				},
+			},
+		},
+		{
+			// 比 /order/* 多了一段
+			//如果既有/a/b/*, 又有/a/b/*/c，那么遇到/a/b/ggg/c该怎么匹配，是优先静态路由？那如果是/a/b/ggg/c/d呢？是否应该匹配/a/b/*？这样是否意味着需要回溯？
+			name:   "overflow long",
+			method: http.MethodPost,
+			path:   "/order/delete/123/random/just/here",
 			found:  true,
 			mi: &matchInfo{
 				n: &node{
