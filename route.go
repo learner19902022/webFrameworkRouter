@@ -261,38 +261,6 @@ func (n *node) childOf(path string) (*node, bool, bool, bool) {
 		return n.starChild, false, false, n.starChild != nil
 	}
 	res, ok := n.children[path]
-	/*if n.children == nil {
-		if n.regChild != nil {
-			if n.regChild.regExpr.FindString(path) != "" { //len(n.regExpr.FindString(path)) == len(path) { //这边有点问题：如果正则规则里面有倾向于取更少的字符，那么会导致即使全匹配，也会有限选择更短的string；可是如果不是检查长度的话，又无法排除path中的一部分匹配到了正则规则
-				return n.regChild, false, true, true
-			}
-			if n.paramChild != nil {
-				return n.paramChild, true, false, true
-			}
-			return n.starChild, false, false, n.starChild != nil
-		}
-		if n.paramChild != nil {
-			return n.paramChild, true, false, true
-		}
-		return n.starChild, false, false, n.starChild != nil
-	}
-	res, ok := n.children[path]
-	if !ok {
-		if n.regChild != nil {
-			if n.regChild.regExpr.FindString(path) != "" { //len(n.regExpr.FindString(path)) == len(path) { //这边有点问题：如果正则规则里面有倾向于取更少的字符，那么会导致即使全匹配，也会有限选择更短的string；可是如果不是检查长度的话，又无法排除path中的一部分匹配到了正则规则
-				return n.regChild, false, true, true
-			}
-			if n.paramChild != nil {
-				return n.paramChild, true, false, true
-			}
-			return n.starChild, false, false, n.starChild != nil
-		}
-		if n.paramChild != nil {
-			return n.paramChild, true, false, true
-		}
-		return n.starChild, false, false, n.starChild != nil
-	}
-	*/
 	return res, false, false, ok
 }
 
