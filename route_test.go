@@ -415,12 +415,20 @@ func Test_router_findRoute(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/order/*",
 		},
+		{
+			method: http.MethodPost,
+			path:   "/*",
+		},
 		//try adding one layer here to see if it works? it should not work by design
 		//		{
 		//			method: http.MethodPost,
 		//			path:   "/order/*/address",
 		//		},
 		// 参数路由
+		{
+			method: http.MethodConnect,
+			path:   "/:id",
+		},
 		{
 			method: http.MethodGet,
 			path:   "/param/:id",
@@ -512,6 +520,19 @@ func Test_router_findRoute(t *testing.T) {
 		},
 		// 通配符匹配
 		{
+			//单独一段通配符匹配
+			name:   "star at top level",
+			method: http.MethodPost,
+			path:   "/*",
+			found:  true,
+			mi: &matchInfo{
+				n: &node{
+					path:    "*",
+					handler: mockHandler,
+				},
+			},
+		},
+		{
 			// 命中/order/*
 			//如果是注册了/order/*/random，则测试会显示无法通过，需要去除handler才能通过测试，可是为什么会显示命中路由呢？
 			name:   "star match",
@@ -568,6 +589,20 @@ func Test_router_findRoute(t *testing.T) {
 			},
 		},
 		// 参数匹配
+		{
+			// 命中 /:id
+			name:   ":id",
+			method: http.MethodConnect,
+			path:   "/123",
+			found:  true,
+			mi: &matchInfo{
+				n: &node{
+					path:    ":id",
+					handler: mockHandler,
+				},
+				pathParams: map[string]string{"id": "123"},
+			},
+		},
 		{
 			// 命中 /param/:id
 			name:   ":id",
@@ -634,6 +669,19 @@ func Test_router_findRoute(t *testing.T) {
 				n: &node{
 					path:    ":id(.*)",
 					handler: mockHandler,
+				},
+				pathParams: map[string]string{"id": "123"},
+			},
+		},
+		{
+			// 命中 /:id([0-9]+) 但没有handler
+			name:   ":id(d+)",
+			method: http.MethodDelete,
+			path:   "/123",
+			found:  true,
+			mi: &matchInfo{
+				n: &node{
+					path: ":id(.*)",
 				},
 				pathParams: map[string]string{"id": "123"},
 			},
