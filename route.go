@@ -2,7 +2,9 @@ package web
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -275,4 +277,62 @@ func (m *matchInfo) addValue(key string, value string) {
 		m.pathParams = map[string]string{key: value}
 	}
 	m.pathParams[key] = value
+}
+
+func (r *router) PrintAllRouters() { //DFS
+	for method, root := range r.trees {
+		fmt.Printf("======================\n")
+		fmt.Printf("打印路由树，树名为 %s:\n", method)
+		root.printNode("/")
+	}
+}
+
+func (n *node) printNode(concatPath string) (upLayerPath string) {
+	fmt.Printf("--------------\n")
+	fmt.Printf("路由节点名为：%s\n", n.path)
+	if n.path != "/" {
+		concatPath = concatPath + "/" + n.path
+	}
+	switch n.typ {
+	case nodeTypeStatic:
+		fmt.Printf("路由节点类型为：%s\n", "静态路由节点")
+		fmt.Printf("路由地址：%s\n", concatPath)
+		fmt.Printf("句柄为 %s\n", runtime.FuncForPC(reflect.ValueOf(n.handler).Pointer()).Name())
+	case nodeTypeReg:
+		fmt.Printf("路由节点类型为：%s\n", "正则路由节点")
+		fmt.Printf("路由地址：%s\n", concatPath)
+		fmt.Printf("句柄为 %s\n", runtime.FuncForPC(reflect.ValueOf(n.handler).Pointer()).Name())
+		fmt.Printf("正则表达式为：%s\n", n.regExpr.String())
+	case nodeTypeParam:
+		fmt.Printf("路由节点类型为：%s\n", "参数路由节点")
+		fmt.Printf("路由地址：%s\n", concatPath)
+		fmt.Printf("句柄为 %s\n", runtime.FuncForPC(reflect.ValueOf(n.handler).Pointer()).Name())
+		fmt.Printf("参数名为：%s\n", n.paramName)
+	case nodeTypeAny:
+		fmt.Printf("路由节点类型为：%s\n", "通配符路由节点")
+		fmt.Printf("路由地址：%s\n", concatPath)
+		fmt.Printf("句柄为 %s\n", runtime.FuncForPC(reflect.ValueOf(n.handler).Pointer()).Name())
+	}
+
+	if concatPath == "/" {
+		concatPath = ""
+	}
+
+	for _, childNode := range n.children {
+		concatPath = childNode.printNode(concatPath)
+	}
+
+	if n.regChild != nil {
+		concatPath = n.regChild.printNode(concatPath)
+	}
+
+	if n.paramChild != nil {
+		concatPath = n.paramChild.printNode(concatPath)
+	}
+
+	if n.starChild != nil {
+		concatPath = n.starChild.printNode(concatPath)
+	}
+
+	return strings.TrimSuffix(concatPath, "/"+n.path)
 }

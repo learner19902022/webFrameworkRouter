@@ -229,6 +229,8 @@ func Test_router_AddRoute(t *testing.T) {
 	log.Printf("%s", msg)
 	assert.True(t, ok, msg)
 
+	wantRouter.PrintAllRouters()
+
 	// 非法用例
 	r = newRouter()
 
