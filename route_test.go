@@ -716,6 +716,21 @@ func Test_router_findRoute(t *testing.T) {
 		fmt.Printf("%s 匹配 %s\n", testPath, wantedNode.path)
 	}
 
+	wantedNode = &node{
+		typ:       nodeTypeReg,
+		path:      ":id(.*)",
+		handler:   mockHandler,
+		regExpr:   regexp.MustCompile(".*"),
+		paramName: "id",
+	}
+
+	msg, found = r.VerifyRouter(http.MethodDelete, testPath, wantedNode)
+	if !found {
+		fmt.Printf("%s\n", msg)
+	} else {
+		fmt.Printf("%s 匹配上了路由 %s\n", testPath, wantedNode.path)
+	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mi, found := r.findRoute(tc.method, tc.path)
