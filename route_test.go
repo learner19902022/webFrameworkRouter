@@ -329,6 +329,7 @@ func (r router) equal(y router) (string, bool) {
 	return "", true
 }
 
+/*
 func (n *node) equal(y *node) (string, bool) {
 	if y == nil {
 		return "目标节点为 nil", false
@@ -390,6 +391,7 @@ func (n *node) equal(y *node) (string, bool) {
 	}
 	return "", true
 }
+*/
 
 // above ok
 func Test_router_findRoute(t *testing.T) {
@@ -699,6 +701,19 @@ func Test_router_findRoute(t *testing.T) {
 	r := newRouter()
 	for _, tr := range testRoutes {
 		r.addRoute(tr.method, tr.path, mockHandler)
+	}
+
+	wantedNode := &node{
+		path:    ":id(.*)",
+		handler: mockHandler,
+	}
+	testPath := "/reg/123"
+
+	msg, found := r.VerifyRouter(http.MethodDelete, testPath, wantedNode)
+	if !found {
+		fmt.Printf("%s\n", msg)
+	} else {
+		fmt.Printf("%s 匹配 %s\n", testPath, wantedNode.path)
 	}
 
 	for _, tc := range testCases {

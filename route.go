@@ -336,3 +336,80 @@ func (n *node) printNode(concatPath string) (upLayerPath string) {
 
 	return strings.TrimSuffix(concatPath, "/"+n.path)
 }
+
+func (r *router) VerifyRouter(method string, testPath string, wantedRouteNode *node) (string, bool) {
+	if wantedRouteNode == nil {
+		panic("想测试的路由不能为空")
+	}
+
+	testNode, found := r.findRoute(method, testPath)
+	if !found {
+		return "未找到测试路径可使用的路由", false
+	}
+
+	msg, verified := testNode.n.equal(wantedRouteNode)
+
+	return msg, verified
+}
+
+func (n *node) equal(y *node) (string, bool) {
+	if y == nil {
+		return "目标节点为 nil", false
+	}
+	if n.path != y.path {
+		return fmt.Sprintf("%s 节点 path 不相等 x %s, y %s", n.path, n.path, y.path), false
+	}
+
+	nhv := reflect.ValueOf(n.handler)
+	yhv := reflect.ValueOf(y.handler)
+	if nhv != yhv {
+		return fmt.Sprintf("%s 节点 handler 不相等 x %s, y %s", n.path, nhv.Type().String(), yhv.Type().String()), false
+	}
+
+	if n.typ != y.typ {
+		return fmt.Sprintf("%s 节点类型不相等 x %d, y %d", n.path, n.typ, y.typ), false
+	}
+
+	if n.paramName != y.paramName {
+		return fmt.Sprintf("%s 节点参数名字不相等 x %s, y %s", n.path, n.paramName, y.paramName), false
+	}
+
+	if len(n.children) != len(y.children) {
+		return fmt.Sprintf("%s 子节点长度不等", n.path), false
+	}
+	if len(n.children) == 0 {
+		return "", true
+	}
+
+	if n.starChild != nil {
+		str, ok := n.starChild.equal(y.starChild)
+		if !ok {
+			return fmt.Sprintf("%s 通配符节点不匹配 %s", n.path, str), false
+		}
+	}
+	if n.paramChild != nil {
+		str, ok := n.paramChild.equal(y.paramChild)
+		if !ok {
+			return fmt.Sprintf("%s 路径参数节点不匹配 %s", n.path, str), false
+		}
+	}
+
+	if n.regChild != nil {
+		str, ok := n.regChild.equal(y.regChild)
+		if !ok {
+			return fmt.Sprintf("%s 正则节点不匹配 %s", n.path, str), false
+		}
+	}
+
+	for k, v := range n.children {
+		yv, ok := y.children[k]
+		if !ok {
+			return fmt.Sprintf("%s 目标节点缺少子节点 %s", n.path, k), false
+		}
+		str, ok := v.equal(yv)
+		if !ok {
+			return n.path + "-" + str, ok
+		}
+	}
+	return "", true
+}
